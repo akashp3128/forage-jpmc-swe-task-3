@@ -1,0 +1,140 @@
+From ad075c86d0dd7f6d66db40cc6b3bc69bf2c800fb Mon Sep 17 00:00:00 2001
+From: apatel1 <akashp3128@gmail.com>
+Date: Fri, 20 Oct 2023 20:00:51 -0500
+Subject: [PATCH 1/2] first commit
+
+---
+ src/Graph.tsx | 21 +++++++++++++--------
+ 1 file changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/Graph.tsx b/src/Graph.tsx
+index 277797d..c4aa995 100644
+--- a/src/Graph.tsx
++++ b/src/Graph.tsx
+@@ -23,9 +23,12 @@ class Graph extends Component<IProps, {}> {
+     const elem = document.getElementsByTagName('perspective-viewer')[0] as unknown as PerspectiveViewerElement;
+ 
+     const schema = {
+-      stock: 'string',
+-      top_ask_price: 'float',
+-      top_bid_price: 'float',
++      price_abc: 'float',
++      price_def: 'float',
++      ratio: 'float',
++      upper_bound: 'float',
++      lower_bound: 'float',
++      trigger_alert: 'float',
+       timestamp: 'date',
+     };
+ 
+@@ -36,14 +39,16 @@ class Graph extends Component<IProps, {}> {
+       // Load the `table` in the `<perspective-viewer>` DOM reference.
+       elem.load(this.table);
+       elem.setAttribute('view', 'y_line');
+-      elem.setAttribute('column-pivots', '["stock"]');
+       elem.setAttribute('row-pivots', '["timestamp"]');
+-      elem.setAttribute('columns', '["top_ask_price"]');
++      elem.setAttribute('columns', '["ratio", "lower_bound", "upper_bound", "trigger_alert"]');
+       elem.setAttribute('aggregates', JSON.stringify({
+-        stock: 'distinctcount',
+-        top_ask_price: 'avg',
+-        top_bid_price: 'avg',
++        price_abc: 'avg',
++        price_def: 'avg',
++        ratio: 'avg',
+         timestamp: 'distinct count',
++        upper_bound: 'avg',
++        lower_bound: 'avg',
++        trigger_alert: 'avg',
+       }));
+     }
+   }
+-- 
+2.40.0.windows.1
+
+
+From 011ed74cda7129f6bae61df97dfaa465d77cb288 Mon Sep 17 00:00:00 2001
+From: apatel1 <akashp3128@gmail.com>
+Date: Fri, 20 Oct 2023 20:16:00 -0500
+Subject: [PATCH 2/2] completed task 3- ratio bwtn 2 stocks over time
+
+---
+ src/DataManipulator.ts | 36 ++++++++++++++++++++++++------------
+ src/Graph.tsx          |  6 +++---
+ 2 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/src/DataManipulator.ts b/src/DataManipulator.ts
+index 7f62295..7849143 100644
+--- a/src/DataManipulator.ts
++++ b/src/DataManipulator.ts
+@@ -1,20 +1,32 @@
+-import { ServerRespond } from './DataStreamer';
++import { ServerRespond as ServerRespondType } from './DataStreamer';
+ 
+ export interface Row {
+-  stock: string,
+-  top_ask_price: number,
++  price_abc: number,
++  price_def: number,
++  ratio: number,
++  upper_bound: number,
++  lower_bound: number,
++  trigger_alert: number | undefined,
+   timestamp: Date,
+ }
+ 
+-
+ export class DataManipulator {
+-  static generateRow(serverResponds: ServerRespond[]) {
+-    return serverResponds.map((el: any) => {
+-      return {
+-        stock: el.stock,
+-        top_ask_price: el.top_ask && el.top_ask.price || 0,
+-        timestamp: el.timestamp,
+-      };
+-    })
++  static generateRow(serverResponds: ServerRespondType[]): Row {
++    const priceABC = (serverResponds[0].top_ask.price + serverResponds[0].top_bid.price) / 2;
++    const priceDEF = (serverResponds[1].top_ask.price + serverResponds[1].top_bid.price) / 2;
++    const ratio = priceABC / priceDEF;
++    const upperBound = 1 + 0.1;
++    const lowerBound = 1 - 0.1;
++    const timestamp = serverResponds[0].timestamp > serverResponds[1].timestamp ?
++      serverResponds[0].timestamp : serverResponds[1].timestamp;
++    return {
++      price_abc: priceABC,
++      price_def: priceDEF,
++      ratio,
++      upper_bound: upperBound,
++      lower_bound: lowerBound,
++      trigger_alert: (ratio > upperBound || ratio < lowerBound) ? ratio : undefined,
++      timestamp,
++    };
+   }
+ }
+diff --git a/src/Graph.tsx b/src/Graph.tsx
+index c4aa995..25191c6 100644
+--- a/src/Graph.tsx
++++ b/src/Graph.tsx
+@@ -1,5 +1,5 @@
+ import React, { Component } from 'react';
+-import { Table } from '@finos/perspective';
++import { Table, TableData } from '@finos/perspective';
+ import { ServerRespond } from './DataStreamer';
+ import { DataManipulator } from './DataManipulator';
+ import './Graph.css';
+@@ -55,9 +55,9 @@ class Graph extends Component<IProps, {}> {
+ 
+   componentDidUpdate() {
+     if (this.table) {
+-      this.table.update(
++      this.table.update([
+         DataManipulator.generateRow(this.props.data),
+-      );
++      ] as unknown as TableData);
+     }
+   }
+ }
+-- 
+2.40.0.windows.1
+

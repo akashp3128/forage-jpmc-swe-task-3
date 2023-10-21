@@ -4,10 +4,10 @@ export interface Row {
   price_abc: number,
   price_def: number,
   ratio: number,
+  timestamp: Date,
   upper_bound: number,
   lower_bound: number,
   trigger_alert: number | undefined,
-  timestamp: Date,
 }
 
 export class DataManipulator {
@@ -17,16 +17,15 @@ export class DataManipulator {
     const ratio = priceABC / priceDEF;
     const upperBound = 1 + 0.1;
     const lowerBound = 1 - 0.1;
-    const timestamp = serverResponds[0].timestamp > serverResponds[1].timestamp ?
-      serverResponds[0].timestamp : serverResponds[1].timestamp;
     return {
       price_abc: priceABC,
       price_def: priceDEF,
       ratio,
+      timestamp: serverResponds[0].timestamp > serverResponds[1].timestamp ?
+      serverResponds[0].timestamp : serverResponds[1].timestamp,
       upper_bound: upperBound,
       lower_bound: lowerBound,
       trigger_alert: (ratio > upperBound || ratio < lowerBound) ? ratio : undefined,
-      timestamp,
     };
   }
 }
